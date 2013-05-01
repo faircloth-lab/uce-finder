@@ -18,46 +18,49 @@ import time
 import numpy
 import sqlite3
 import sequence
-import optparse
+import argparse
 import bx.align.maf
-import multiprocessing
+#import multiprocessing
 
 
-def interface():
-    '''Get the starting parameters from a configuration file'''
-    usage = "usage: %prog [options]"
-    p = optparse.OptionParser(usage)
-    p.add_option('--maf',
-            dest='maf',
-            action='store', \
-            type='string',
+def get_args():
+    """Get arguments from CLI"""
+    parser = argparse.ArgumentParser(
+            description="""summary.py""")
+    parser.add_argument(
+            "--maf",
+            required=True,
             default=None,
-            help='The path to the directory containing maf file(s).', \
-            metavar='FILE'
+            help="""The path to the directory containing maf file(s)"""
         )
-    p.add_option('--alignment-length',
-            dest='align',
-            action='store',
-            type='int',
-            default=25,
-            help='The minimum acceptable alignment length.')
-    p.add_option('--consensus-length',
-            dest='consensus',
-            action='store',
-            type='int',
-            default=25,
-            help='The minimum acceptable consensus length.'
+    parser.add_argument(
+            "--db",
+            required=True,
+            default=None,
+            help="""The name of the output SQLITE database to hold results"""
         )
-    p.add_option('--metadata-key',
-            dest='metadata',
-            action='store',
-            type='string',
-            default=25,
-            help="""The _primary_ species in the alignment \
-                    (e.g. the one on top)."""
+    parser.add_argument(
+            "--metadata-key",
+            required=True,
+            dest="metadata",
+            type=str,
+            help="""The primary species in the alignment (e.g. the one on top in the MAF file)"""
         )
-    (options, arg) = p.parse_args()
-    return options, arg
+    parser.add_argument(
+            "--alignment-length",
+            dest="align",
+            type=int,
+            default=25,
+            help="""The minimum acceptable alignment length"""
+        )
+    parser.add_argument(
+            "--consensus-length",
+            dest="consensus",
+            type=int,
+            default=25,
+            help="""The minimum acceptable consensus length"""
+        )
+    return parser.parse_args()
 
 
 def spScreen(a, minAlignLength):
@@ -303,17 +306,17 @@ def file_gen(directory):
 
 def main():
     start = time.time()
-    options, arg = interface()
+    args = get_args()
     # connect to our dbase
-    conn = sqlite3.connect("insect-uce.sqlite")
+    conn = sqlite3.connect(args.db)
     cur = conn.cursor()
     createConsTable(cur)
-    files = file_gen(options.maf)
+    files = file_gen(args.maf)
     #pdb.set_trace()
     print 'Not using multiprocessing'
     try:
         while files:
-            worker(files.next(), options.consensus, options.align, options.metadata, cur)
+            worker(files.next(), args.consensus, args.align, args.metadata, cur)
     except StopIteration:
         pass
     # commit any remaining changes
